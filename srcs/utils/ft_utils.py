@@ -48,11 +48,41 @@ def		filter_data(_raw):
 	return data_filter
 
 #-------------------------------------------------------------------------------
-# data reading part
-def		raw_filenames(_sbj, _run):
+def		prepare_data(_raw, _montage):
+	"""
+pre-processing for EEG data.
+normalize the channel name, standardize the data, set montage on data.
+
+MONTAGE:
+	a method to solve and process EEG dataset
+	defines the positions of electric nodes and channel batch.
+	WHY?
+		standadize
+		pre-processing and analysis
+		location information
+	the most use system of Montage is 10-20 system.
+	"""
+	return 0
+#-------------------------------------------------------------------------------
+def		fetch_data(_raw_fnames, _runs, _sfreq, _bool_print):
+	"""
+Reading EEG data from given file names
+	"""
+	return 0
+
+#-------------------------------------------------------------------------------
+def		raw_filenames(_subjects, _runs):
 	print_fname(f"{GRE}[raw_filenames]")
 	raw_fnames = []
-	for sbj in _sbj:
-		raw_fname = eegbci.load_data(sbj, _run)
+	for subject in _subjects:
+		raw_fname = eegbci.load_data(subject, _runs)
 		raw_fnames.extend(raw_fname)
 	return raw_fnames
+
+#-------------------------------------------------------------------------------
+def		fetch_events(_data_filtered, _min=0.0, _max=2.0):
+	"""
+fetch evetns from data
+returns label and epoch; EEG data over a continuous period of time.
+	"""
+	return 0, 0

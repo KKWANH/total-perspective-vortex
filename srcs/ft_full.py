@@ -29,48 +29,9 @@ from	ft_csp							import	FT_CSP
 from	mne.decoding					import	CSP
 
 #-------------------------------------------------------------------------------
-def		fetch_events(_data_filtered, _min=0.0, _max=2.0):
-	"""
-fetch evetns from data
-returns label and epoch; EEG data over a continuous period of time.
-	"""
-	return 0, 0
-
-#-------------------------------------------------------------------------------
 def		filter_data(_raw):
 	"""
 filters the EEG data with 8~30Hz bandwith
-	"""
-	return 0
-
-#-------------------------------------------------------------------------------
-def		prepare_data(_raw, _montage):
-	"""
-pre-processing for EEG data.
-normalize the channel name, standardize the data, set montage on data.
-
-MONTAGE:
-	a method to solve and process EEG dataset
-	defines the positions of electric nodes and channel batch.
-	WHY?
-		standadize
-		pre-processing and analysis
-		location information
-	the most use system of Montage is 10-20 system.
-	"""
-	return 0
-
-#-------------------------------------------------------------------------------
-def		fetch_data(_raw_fnames, _sfreq, _bool_print):
-	"""
-Reading EEG data from given file names
-	"""
-	return 0
-
-#-------------------------------------------------------------------------------
-def		raw_filenames():
-	"""
-return the raw EEG data file name
 	"""
 	return 0
 
