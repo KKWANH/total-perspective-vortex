@@ -94,13 +94,32 @@ saves the trained model as "final_model.joblib"
 
 	# assembling classifier
 	"""
-@TODO
-@CONCEPT: LDA
+@CONCEPT: LDA (Linear Discriminant Analysis, 선형 판별 분석)
+	one of classification algorithm on supervised learning
+	GOAL:
+		- find a new axis that can classify between different classes
+		- project it onto a lower-dimensional space
+			transforming original high-dim data onto low-dim.
+			this transforming can saves feature of data and reduces dimension
+			 -> increase the performance
+			EXAMPLE:
+				데이터 포인트가 3차원(x, y, z)에서 주어진 경우,
+				각 데이터 포인트는 3개의 값을 갖습니다.
+				이를 저차원 공간, 예를 들어 2차원(x', y')으로 투영하면,
+				각 데이터 포인트는 이제 2개의 값만을 갖게 됩니다.
+			
 @CONCEPT: shrinkage
+	정규화의 일종(regularation)
+	LDA에서 공분산 행렬을 추정할 때 사용
+	overfitting 방지, 일반화 성능 향상
+	훈련 샘플이 적거나 고차원 데이터인 경우 성능 향상
 	"""
-	lda_shrinkage = LDA(solver='lsqr', shrinkage='auto')
+	lda = LDA(
+		solver = 'lsqr',
+		shrinkage = 'auto'
+	)
+
 	"""
-@TODO
 @CONCEPT: CSP
 	"""
 	# ft_csp = FT_CSP(n_components)
