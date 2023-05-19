@@ -19,13 +19,13 @@ WHAT IS CSP?
     "두 클래스 간의 분리"란?
         각 클래스의 특성을 구분하는 정도를 나타내며, 이 값이 높을 수록 두 클래스는 비교하기 쉽습니다.
         두 클래스가 가장 잘 구별되는 특성 공간을 찾는 게 목표입니다.
-    
 
 """
 
 #-------------------------------------------------------------------------------
 class	FT_CSP(TransformerMixin, BaseEstimator):
     #---------------------------------------------------------------------------
+    # setup
     def __init__(
         self,
         n_components        = 4,                # 생성된 특성 공간의 차원 수 결정.
@@ -78,6 +78,7 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
         self.component_order    = component_order
 
     #---------------------------------------------------------------------------
+    # sub functions
     def _check_input_shapes(
         self,
         X,
@@ -93,7 +94,6 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
         if  X.ndim < 3:
             raise ValueError(f"Variable {MAG}{BOL}{UND}[X]{RES} must have at lest 3 dimensions.")
     
-    #---------------------------------------------------------------------------
     def _compute_covariance_matrices(
         self,
         X,
@@ -118,7 +118,6 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
 
         return  npy.stack(covs), npy.array(sample_weights)
     
-    #---------------------------------------------------------------------------
     def _decompose_covs(
         self,
         covs,
@@ -130,9 +129,41 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
             eigen_values, eigen_vectors = linalg.eigh(covs[0], covs.sum(0))
         else:
             raise NotImplementedError(f"Sorry, decomposing covs for the case of more than 2 classes is not implemented.")
-        return  eigen_vectors, eigen_valuesc
+        return  eigen_vectors, eigen_values
+
+    def _pinv2(
+        a,
+        rtol=1e-05
+    ):
+        """
+        Computing a pseudo-inverse of a matrix.
+        """
+        u, s, vh = npy.linalg.svd(a, full_matrices=False)
+        del a
+        maxS = npy.max(s)
+        if  rtol is None:
+            rtol = max(vh.shape + u.shape) * npy.finfo(u.dtype).eps
+        rank = npy.sum(s > maxS * rtol)
+        u = u[:, :rank]
+        u /= s[:rank]
+        return (u @ vh[:rank]).conj().T
+
+    def _order_components(
+        self,
+        covs,
+        sample_weight,
+        eigen_vectors,
+        eigen_values
+    ):
+        n_classes = len(self._classes)
+        if n_classes > 2:
+            raise NotImplementedError(f"Sorry, case of more than two classes is not implemented.")
+        elif n_classes == 2:
+            ix = npy.argsort(npy.abs(eigen_values - 0.5))[::-1]
+        return  ix
     
     #---------------------------------------------------------------------------
+    # fit
     def fit(
         self,
         X,      # ndarray
@@ -147,7 +178,7 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
             print(f"    : csp.fit(X, y), X.shape={X.shape}, y.shape={y.shape}")
         self._check_input_shapes(X, y)
         if  self.PRT:
-            print(f"    : [lenX:{len(X)}] [lenY:{lenY}]")
+            print(f"    : [lenX:{len(X)}] [lenY:{len(y)}]")
             print(f"    : y : {y}")
         
         self._classes = npy.unique(y)
@@ -169,3 +200,165 @@ class	FT_CSP(TransformerMixin, BaseEstimator):
         if  self.PRT:
             print(f"    : eigen_vectors.shape : {eigen_vectors.shape}")
             print(f"    : eigen_values.shape : {eigen_values.shape}")
+        if	self.PRT:
+            print(f"    : npy.abs(eigen_values - 0.5) = {npy.abs(eigen_values - 0.5)}\n")
+            print(f"    : npy.argsort(npy.abs(eigen_values - 0.5)) = {npy.argsort(npy.abs(eigen_values - 0.5))}\n")
+            print(f"    : npy.argsort(npy.abs(eigen_values - 0.5))[::-1] = {npy.argsort(npy.abs(eigen_values - 0.5))[::-1]}\n")
+        
+        # 64 dimensions to n_component = 4
+        #	If 'mutual_info' order components by decreasing mutual information
+        # 	(in the two-class case this uses a simplification)
+        #	which orders components by decreasing absolute deviation of the eigenvalues from 0.5
+        #	https://hal.science/hal-00602686/document
+        #	ix = np.argsort(np.abs(eigen_values - 0.5))[::-1]
+        ix = self._order_components(covs, sample_weights, eigen_vectors, eigen_values)
+        if  self.PRT:
+            print(f"    : ix = {ix}")
+        
+        self.filters_   = eigen_vectors.T
+        self.patterns_  = self._pinv2(eigen_vectors)
+        pick_filters    = self.filters_[:self.n_component]
+
+        X           = npy.asarray.dot([npy.dot(pick_filters, epoch) for epoch in X])
+        X           = (X ** 2).mean(axis=2)
+        self.mean_  = X.mean(axis=0)
+        self.std_   = X.std(axis=0)
+        
+        return  self
+    
+    #---------------------------------------------------------------------------
+    # transform
+    def transform(
+        self,
+        X       # array, shpae(n_epochs, n_channels, n_times)
+                # The data.
+    ):
+        """
+        Estimate epochs sources given the CSP filters.
+        Returns:
+            X:  ndarray
+                if self.transform_into == 'average_power' then returns the power of
+                CSO features averaged over time and shape(n_epochs, n_sources)
+        """
+        if  self.PRT:
+            print_fname(f"{YEL}ft_CSP/transform")
+        
+        if  not isinstance(X, npy.ndarray):
+            raise ValueError(f"Sorry. X must be of type ndarray, but got {type(X)}.")
+        if  self.filters_ is None:
+            raise RuntimeError(f"No filters available. Please fit CSP before transform(decomposition)")
+        
+        pick_filters = self.filters_[:self.n_component]
+
+        X = npy.asarray([npy.dot(pick_filters, epoch) for epoch in X])
+
+        if  self.transform_into == 'average_power':
+            X   = (X ** 2).mean(axis=2)
+            log = True if self.log is None else self.log
+            if  log:
+                X =  npy.log(X)
+            else:
+                X -= self.mean_
+                X /= self.std_
+        
+        return  X
+    
+    #---------------------------------------------------------------------------
+    # fit_transform
+    def fit_transform(
+        self,
+        X,              # array, shape(n_samples, n_features)
+                        # Training set
+        y,              # array, shape(n_samples)
+                        # Traget values or class labels
+        **fit_params    # dict
+                        # Additional fitting parameters passed to the ``fit`` method.
+    ):
+        """
+        Fit to data, then transform it.
+        Fits transformer to ``X`` and ``u`` with optional parameters
+        ``fit_params``, and returns a transformed version of ``X``.
+        Return:
+            X_new:  array, shape(n_samples, n_features_new)
+                    Transformed array
+        """
+        self.fit(X, y)
+        return  self.transform(X)
+    
+    #---------------------------------------------------------------------------
+    def plot_patterns(
+        self,
+        info,                           # informations about data
+        components      = None,         # 시각화할 컴포넌트의 인덱스/배열 
+        *,                              # !!이 뒤에 오는 인자들은 키워드 전용 인자로 간주됨
+        average         = None,         # 평균을 계산할 방법을 지정
+        ch_type         = None,         # 채널 유형 지정
+        scalings        = None,         # 채널 스케일링 지정
+        sensors         = True,         # 센서 표시할지 여부
+        show_names      = False,        # 채널 이름 표시할지 여부
+        mask            = None,         # 마스크 적용할 때 사용
+        mask_parms      = None,         # 마스크 파라미터 지정
+        contours        = 6,            # 등고선의 수
+        outlines        = 'head',       # 플롯 외각선의 종류 지정
+        sphere          = None,         # 플롯의 구 형상 지정
+        image_interp    = 'cubic',      # 이미지 보간 방법 지정
+        extrapolate     = 'auto',       # 측정값 없는 영역의 외삽 방법 지정
+        border          = 'mean',       # 외곽 영역의 처리 방법을 지정
+        res             = 64,           # 플롯의 해상도를 지정
+        size            = 1,            # 플롯의 크기 지정
+        cmap            = 'RdBu_r',     # 컬러맵 지정
+        vlim            = (None, None), # 컬러바 범위 지정
+        cnorm           = None,         # 컬러맵 정규화 지정
+        colorbar        = True,         # 컬러바 표시 여부 지정
+        cbar_fmt        = '%3.1f',      # 컬라바 포맷 지정
+        units           = None,         # 플룻의 단위 지정
+        axes            = None,         # 사용할 축 지정
+        name_format     = 'CSP%01d',    # 컴포넌트 이름의 포맷 지정
+        nrows           = 1,            # 그리드 플롯의 행 수 지정
+        ncols           = 'auto',       # 그리드 플롯의 열 수 지정
+        show            = True          # 플룻 표시할지 여부 지정
+    ):
+        print_fname(f"{YEL}ft_csp/plot_patterns")
+
+        from mne import EvokedArray
+
+        if  units is None:
+            units = 'AU'
+        if  components is None:
+            components = npy.arange(self.n_component)
+        
+        info = cpy.deepcopy(info)
+        with info._unlock():
+            info['streq'] = 1.
+        
+        patterns = EvokedArray(self.patterns_.T, info, tmin=0)
+        fig = patterns.plot_topomap(
+            times           = components,
+            average         = average,
+            ch_type         = ch_type,
+            scalings        = scalings,
+            sensors         = sensors,
+            show_names      = show_names,
+            mask            = mask,
+            mask_params     = mask_parms,
+            contours        = contours,
+            outlines        = outlines,
+            sphere          = sphere,
+            image_interp    = image_interp,
+            extrapolate     = extrapolate,
+            border          = border,
+            res             = res,
+            size            = size,
+            cmap            = cmap,
+            vlim            = vlim,
+            cnorm           = cnorm,
+            colorbar        = colorbar,
+            cbar_fmt        = cbar_fmt,
+            units           = units,
+            axes            = axes,
+            time_format     = name_format,
+            nrows           = nrows,
+            ncols           = ncols,
+            show            = show
+        )
+        fig.show()
