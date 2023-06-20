@@ -2,18 +2,20 @@
 # library
 import	numpy							as		npy
 import 	os
+import  matplotlib.pyplot               as      plt
 import 	mne
-from	mne 							import	eventsfrom_annotations
-from	mne.io 							import (
+
+from	mne 							import	events_from_annotations
+from	mne.io 							import  (
         concatenate_raws,
-        read_raw_eof)
+        read_raw_edf)
 from	mne.datasets					import	eegbci
 
 import 	sklearn
 from 	sklearn.svm						import SVC
-from	sklearn.discriminant_analysis	import (
-        LinearDiscriminantAnalysis 		as LDA)
-from	sklearn.model_selection			import (
+from	sklearn.discriminant_analysis	import  (
+        LinearDiscriminantAnalysis 		as      LDA)
+from	sklearn.model_selection			import  (
         ShuffleSplit,
         cross_val_score)
 from	sklearn.pipeline				import	Pipeline
@@ -50,6 +52,7 @@ def		ft_fit(
     _bool_print = False,
     _bool_plot  = False,
     _bool_pipe  = True):
+
     print_fname(f"{CYA}[ft_fit]")
     """
 saves the classifier.
@@ -57,21 +60,21 @@ training classifier with CSP(Common Spatial Pattern), LDA(Linear Discriminant An
 saves the trained model as "final_model.joblib"
     """
     raw = filter_data(
-        _raw = prepare_data(
-            _raw = fetch_data(
-                _raw = raw_filenames(
-                    _subjects = _subjects,
-                    _runs = _runs
+        raw = prepare_data(
+            raw = fetch_data(
+                raw_fnames = raw_filenames(
+                    subjects = _subjects,
+                    runs = _runs
                 ),
-                _runs = _runs
+                runs = _runs
             )
         )
     ) # get raw data by subjects and runs
 
     label, epoch = fetch_events(
-        _data_filtered = raw,
-        _min = _min,
-        _max = _max
+        data_filtered = raw,
+        tmin = _min,
+        tmax = _max
     ) # separate label and epoch
 
     epoch_train = epoch.copy().crop(
@@ -140,13 +143,65 @@ saves the trained model as "final_model.joblib"
     if _bool_pipe is True:
         scores_lda_shrinkage        = cross_val_score(classfication, epoch_train_rdata, label)
         mean_score_lda_shrinkage    = npy.mean(scores_lda_shrinkage)
-        std_scores_ldashrinkage     = npy.std(scores_lda_shrinkage)
+        std_scores_lda_shrinkage    = npy.std(scores_lda_shrinkage)
     else:
         epoch_train_rdata_csp       = csp.fit_transform(epoch_train_rdata, label)
         classfication2              = Pipeline([('LDA', lda)])
-        scores_lda_shrinkage        = cross_val_score(classfication2, epoch_train_rdata, label, cv=cross_validator, n_jobs=1)
+        scores_lda_shrinkage        = cross_val_score(classfication2, epoch_train_rdata_csp, label, cv=cross_validator, n_jobs=1)
         mean_score_lda_shrinkage    = npy.mean(scores_lda_shrinkage)
-        std_scores_ldashrinkage     = npy.std(scores_lda_shrinkage)
+        std_scores_lda_shrinkage    = npy.std(scores_lda_shrinkage)
     
     class_balance = npy.mean(label == label[0])
     class_balance = max(class_balance, 1 - class_balance)
+    print(f"")
+    print(f"    LDA shrinked classification accuracy : {npy.mean(scores_lda_shrinkage)} / Chance level: {class_balance}")
+    print(f"    Mean Score Model {mean_score_lda_shrinkage}")
+    print(f"    Std Score Model {std_scores_lda_shrinkage}")
+    print(f"")
+
+    csp.fit_transform(
+        epoch_train_rdata,
+        label)
+    csp.plot_patterns(
+        epoch.info,
+        ch_type     = 'eeg',
+        units       = 'Patterns (AU)',
+        size        = 1.5)
+
+    classfication = classfication.fit(
+        epoch_train_rdata,
+        label)
+    dump(
+        classfication,
+        "final_model.joblib")
+    print(f"    - model saved to final_model.joblib")
+
+    return  raw
+
+if  __name__ == "__main__":
+    RUNS1 = [6, 10, 14]  # motor imagery: hands vs feet
+    RUNS2 = [4, 8, 12]  # motor imagery: left hand vs right hand
+    RUNS = RUNS2
+
+    tmin = -0.2  # start of each epoch (200ms before the trigger)
+    tmax = 0.5  # end of each epoch (500ms after the trigger)
+
+    plt.ioff()
+    SUBJECTS = [13]
+
+    subject_list=[ 1,  3,  4,  8,  9, 12, 13, 15, 17, 18,
+                  19, 20, 21, 22, 25, 26, 36, 37, 40, 41,
+                  42, 46, 47, 48, 50, 51, 53, 54, 61, 62,
+                  63, 68, 71, 73, 77, 80, 83, 84, 85, 86,
+                  87, 90, 93, 98, 100, 101, 102, 103, 104, 105]
+
+    raw = ft_fit(
+        SUBJECTS,
+        RUNS,
+        _min=tmin,
+        _max=tmax)
+
+    # plt.ion()
+    # fig = plt.figure(figsize=(4.2, 4.2))
+    # plt.plot(range(10), range(10))
+    plt.show()
