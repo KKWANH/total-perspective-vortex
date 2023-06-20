@@ -6,7 +6,7 @@
 #    By: kkim <kkim@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/01/31 16:01:01 by kkim              #+#    #+#              #
-#    Updated: 2023/04/21 16:50:15 by kkim             ###   ########.fr        #
+#    Updated: 2023/06/21 06:21:26 by kkim             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -83,6 +83,30 @@ clean:
 	@rm -rf $(ENV)
 	@printf "\n"
 
+fit:
+	@clear
+	@make help
+	@printf "\n"
+	@printf "$(BLD)$(BLU)[fit]       $(RES)\tRunning src/ft_fit.py.\n"
+	@python3 $(SRC)/ft_fit.py
+	@printf "\n"
+
+predict:
+	@clear
+	@make help
+	@printf "\n"
+	@printf "$(BLD)$(BLU)[predict]   $(RES)\tRunning src/ft_predict.py.\n"
+	@python3 $(SRC)/ft_predict.py
+	@printf "\n"
+
+replay:
+	@clear
+	@make help
+	@printf "\n"
+	@printf "$(BLD)$(BLU)[replay]    $(RES)\tRunning src/ft_replay.py.\n"
+	@python3 $(SRC)/ft_replay.py
+	@printf "\n"
+
 help:
 	@clear
 	@printf "\n"
@@ -94,6 +118,9 @@ help:
 	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(CYA)[activate]$(RES)    activating installed virtual environment\n"
 	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(MAG)[deactivate]$(RES)  deactivating installed virtual environment\n"
 	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(RED)[clean]$(RES)       remove ft_env(virtual environment) folder\n"
+	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(BLU)[fit]$(RES)         fit model\n"
+	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(BLU)[predict]$(RES)     predict with the model. you must have final_model.joblib file that was made by [fit]\n"
+	@printf "$(BLD)$(YEL)            $(RES)\t$(BLD)$(BLU)[replay]$(RES)      replay the data\n"
 	@printf "\n"
 
 .PHONY: all help setup activate deactivate

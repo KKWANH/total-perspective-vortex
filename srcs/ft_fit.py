@@ -4,6 +4,7 @@ import	numpy							as		npy
 import 	os
 import  matplotlib.pyplot               as      plt
 import 	mne
+import  PyQt5
 
 from	mne 							import	events_from_annotations
 from	mne.io 							import  (

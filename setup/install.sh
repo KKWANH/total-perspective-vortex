@@ -21,3 +21,4 @@ pip3 install numpy
 pip3 install matplotlib
 pip3 install scikit-learn
 pip3 install mne
+pip3 install PyQt5
